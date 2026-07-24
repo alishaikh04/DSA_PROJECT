@@ -1,0 +1,6 @@
+password123|Breached
+admin123|Breached
+qwerty|Breached
+ali999|Safe
+newpass2024|Safe
+<ali02341>|<Safe>
