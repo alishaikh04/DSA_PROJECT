@@ -1,31 +1,32 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <ctime>
 #include <string>
+
 
 using namespace std;
 
-// File paths
+
 const string PASSWORDS_FILE = "database.txt";
 const string HISTORY_FILE = "history.txt";
 const string ANALYTICS_FILE = "analytics.txt";
 
-// Hash Node Structure
-struct HashNode {
+
+struct HashNode 
+{
     string password;
     string status;
     HashNode* next;
 };
 
-// Stack Node for History
-struct StackNode {
+
+struct StackNode 
+{
     string operation;
-    string timestamp;
     StackNode* next;
 };
 
-// Global Variables
+
 const int HASH_SIZE = 10;
 HashNode* hashTable[HASH_SIZE] = {NULL};
 StackNode* historyStack = NULL;
@@ -34,29 +35,49 @@ int breachedCount = 0;
 int safeCount = 0;
 
 // ========== HASH FUNCTION ==========
-int getHashIndex(string str) {
+int getHashIndex(string str) 
+{
     int sum = 0;
-    for (int i = 0; i < str.length(); i++) {
+    int size = str.length();
+    
+    if (size < 8)
+    {
+        return -1;
+    }
+ 
+         for (int i = 0; i < size; i++) 
+    {
         sum = sum + (int)str[i];
     }
-    return sum % HASH_SIZE;
+       return sum % HASH_SIZE;
 }
 
 // ========== VALIDATE PASSWORD ==========
-bool isValidPassword(string pass) {
-    if (pass.length() < 8) {
+bool isValidPassword(string password) 
+{
+    if (password.length() < 8) 
+    {
         return false;
     }
     return true;
 }
 
 // ========== CHECK EXISTS ==========
-bool exists(string pass) {
-    int index = getHashIndex(pass);
-    HashNode* temp = hashTable[index];
+bool exists(string password) 
+{
+    int index = getHashIndex(password);
 
-    while (temp != NULL) {
-        if (temp->password == pass) {
+    if (index == -1) 
+    {
+        return false;
+    }
+
+    HashNode* temp = hashTable[index];
+    
+    while (temp != NULL) 
+    {
+        if (temp->password == password) 
+        {
             return true;
         }
         temp = temp->next;
@@ -65,112 +86,142 @@ bool exists(string pass) {
 }
 
 // ========== INSERT INTO HASH TABLE ==========
-void insertIntoHash(string pass, string stat) {
-    if (exists(pass)) {
+void insertIntoHash(string password, string status) 
+{
+    if (exists(password)) 
+    {
+        return;
+    }
+    
+    int index = getHashIndex(password);
+
+    if (index == -1) 
+    {
         return;
     }
 
-    int index = getHashIndex(pass);
     HashNode* newNode = new HashNode();
-    newNode->password = pass;
-    newNode->status = stat;
+    newNode->password = password;
+    newNode->status = status;
     newNode->next = hashTable[index];
     hashTable[index] = newNode;
 }
 
-// ========== GET CURRENT TIME ==========
-string getCurrentTime() {
-    time_t now = time(0);
-    char* dt = ctime(&now);
-    string timeStr(dt);
-    // Remove newline character
-    timeStr = timeStr.substr(0, timeStr.length() - 1);
-    return timeStr;
-}
-
 // ========== STACK OPERATIONS ==========
-void pushHistory(string op) {
+void pushHistory(string operation) 
+{
     StackNode* newNode = new StackNode();
-    newNode->operation = op;
-    newNode->timestamp = getCurrentTime();
+    newNode->operation = operation;
     newNode->next = historyStack;
     historyStack = newNode;
 }
 
-void displayHistory() {
-    if (historyStack == NULL) {
-        cout << "{\"success\":true,\"history\":[]}" << endl;
+// ========== DISPLAY HISTORY (CMD Version) ==========
+void displayHistory() 
+{
+    if (historyStack == NULL) 
+    {
+        cout << endl;
+        cout << "========== HISTORY ==========" << endl;
+        cout << "No history found!" << endl;
+        cout << "=============================" << endl;
         return;
     }
-
-    cout << "{\"success\":true,\"history\":[";
+    
+    cout << endl;
+    cout << "========== HISTORY ==========" << endl;
     StackNode* temp = historyStack;
-    bool first = true;
-
-    while (temp != NULL) {
-        if (!first) {
-            cout << ",";
-        }
-        first = false;
-        cout << "{\"operation\":\"" << temp->operation
-             << "\",\"time\":\"" << temp->timestamp << "\"}";
+    int count = 1;
+    
+    while (temp != NULL) 
+    {
+        cout << count << ". " << temp->operation << endl;
         temp = temp->next;
+        count++;
     }
-    cout << "]}" << endl;
+    cout << "=============================" << endl;
 }
 
 // ========== CHECK PASSWORD ==========
-string checkPassword(string pass) {
+string checkPassword(string password) 
+{
     totalChecks = totalChecks + 1;
 
-    int index = getHashIndex(pass);
-    HashNode* temp = hashTable[index];
+    if (!isValidPassword(password)) 
+    {
+        pushHistory("Checked: " + password + " (Invalid - Too Short)");
+        return "Invalid: Password must be at least 8 characters long.";
+    }
+    
+    int index = getHashIndex(password);
 
-    while (temp != NULL) {
-        if (temp->password == pass) {
-            if (temp->status == "Breached") {
+    if (index == -1) 
+    {
+        return "";
+    }
+
+    HashNode* temp = hashTable[index];
+    
+    while (temp != NULL) 
+    {
+        if (temp->password == password) 
+        {
+            if (temp->status == "Breached") 
+            {
                 breachedCount = breachedCount + 1;
-                pushHistory("Checked: " + pass + " (Breached)");
+                pushHistory("Checked: " + password + " (Breached)");
                 return "Breached";
-            } else {
+            } 
+            else 
+            {
                 safeCount = safeCount + 1;
-                pushHistory("Checked: " + pass + " (Safe)");
+                pushHistory("Checked: " + password + " (Safe)");
                 return "Safe";
             }
         }
         temp = temp->next;
     }
-
+    
     safeCount = safeCount + 1;
-    pushHistory("Checked: " + pass + " (Safe - Not found)");
+    pushHistory("Checked: " + password + " (Safe - Not found)");
     return "Safe";
 }
 
-// ========== ADD PASSWORD ==========
-void addPassword(string pass, string stat) {
-    // Validate password length
-    if (!isValidPassword(pass)) {
-        cout << "{\"success\":false,\"error\":\"Password must be at least 8 characters\"}" << endl;
+// ========== ADD PASSWORD (CMD Version) ==========
+void addPassword(string password, string status) 
+{
+
+    if (status != "Breached" && status != "Safe") 
+    {
+        cout << "Error: Status must be 'Breached' or 'Safe'!" << endl;
         return;
     }
 
-    if (exists(pass)) {
-        cout << "{\"success\":false,\"error\":\"Password already exists\"}" << endl;
+    if (!isValidPassword(password)) 
+    {
+        cout << "Error: Password must be at least 8 characters!" << endl;
         return;
     }
-
-    insertIntoHash(pass, stat);
-
+    
+    if (exists(password)) 
+    {
+        cout << "Error: Password already exists in database!" << endl;
+        return;
+    }
+    
+    insertIntoHash(password, status);
+    
     ofstream out(PASSWORDS_FILE, ios::app);
-    out << pass << "|" << stat << endl;
+    out << password << "|" << status << endl;
     out.close();
-
-    pushHistory("Added: " + pass + " (" + stat + ")");
-    cout << "{\"success\":true}" << endl;
+    
+    pushHistory("Added: " + password + " (" + status + ")");
+    cout << "Password added successfully!" << endl;
 }
 
 // ========== SAVE ANALYTICS ==========
-void saveAnalytics() {
+void saveAnalytics() 
+{
     ofstream out(ANALYTICS_FILE);
     out << totalChecks << endl;
     out << breachedCount << endl;
@@ -178,9 +229,11 @@ void saveAnalytics() {
     out.close();
 }
 
-void loadAnalytics() {
+void loadAnalytics() 
+{
     ifstream in(ANALYTICS_FILE);
-    if (in.is_open()) {
+    if (in.is_open()) 
+    {
         in >> totalChecks;
         in >> breachedCount;
         in >> safeCount;
@@ -189,46 +242,55 @@ void loadAnalytics() {
 }
 
 // ========== LOAD DATABASE ==========
-void loadDatabase() {
+void loadDatabase() 
+{
     ifstream in(PASSWORDS_FILE);
-
-    if (!in.is_open()) {
+    
+    if (!in.is_open()) 
+    {
         ofstream create(PASSWORDS_FILE);
         create << "password123|Breached" << endl;
-        create << "admin123|Breached" << endl;
-        create << "qwerty|Breached" << endl;
-        create << "ali999|Safe" << endl;
+        create << "admin1234|Breached" << endl;
+        create << "qwerty1234|Breached" << endl;
+        create << "ali999000|Safe" << endl;
         create << "newpass2024|Safe" << endl;
         create.close();
         in.open(PASSWORDS_FILE);
     }
-
+    
     string line;
-    while (getline(in, line)) {
-        if (line.empty()) {
+    while (getline(in, line)) 
+    {
+        if (line.empty()) 
+        {
             continue;
         }
-
+        
         stringstream ss(line);
         string pass, stat;
         getline(ss, pass, '|');
         getline(ss, stat, '|');
-
+        
         insertIntoHash(pass, stat);
     }
     in.close();
 }
 
 // ========== LOAD HISTORY ==========
-void loadHistory() {
+void loadHistory() 
+{
     ifstream in(HISTORY_FILE);
-    if (!in.is_open()) {
+    if (!in.is_open()) 
+    {
         return;
     }
-
+    
     string line;
-    while (getline(in, line)) {
-        if (line.empty()) {
+    while (getline(in, line)) 
+    
+    {
+        if (line.empty()) 
+        {
             continue;
         }
         pushHistory(line);
@@ -236,156 +298,206 @@ void loadHistory() {
     in.close();
 }
 
-void saveHistory() {
+void saveHistory() 
+{
     ofstream out(HISTORY_FILE, ios::trunc);
-
+    
     // Create a copy of stack to preserve original
     StackNode* temp = historyStack;
-
+    
     // Count items
     int count = 0;
     StackNode* counter = historyStack;
-    while (counter != NULL) {
+    while (counter != NULL) 
+    {
         count = count + 1;
         counter = counter->next;
     }
-
+    
     // Create array to store operations in order
     string* operations = new string[count];
     int index = 0;
     temp = historyStack;
-    while (temp != NULL) {
+    while (temp != NULL) 
+    {
         operations[index] = temp->operation;
         index = index + 1;
         temp = temp->next;
     }
-
+    
     // Write in reverse order (oldest first)
-    for (int i = count - 1; i >= 0; i--) {
+    for (int i = count - 1; i >= 0; i--) 
+    {
         out << operations[i] << endl;
     }
-
+    
     delete[] operations;
     out.close();
 }
 
-// ========== GET STATS ==========
-void getStats() {
-    cout << "{\"success\":true,\"stats\":{"
-         << "\"totalChecks\":" << totalChecks << ","
-         << "\"breachedCount\":" << breachedCount << ","
-         << "\"safeCount\":" << safeCount
-         << "}}" << endl;
+void displayStats() 
+{
+    cout << endl;
+    cout << "========== ANALYTICS ==========" << endl;
+    cout << "Total Password Checks: " << totalChecks << endl;
+    cout << "Breached Passwords: " << breachedCount << endl;
+    cout << "Safe Passwords: " << safeCount << endl;
+    cout << "History Entries: ";
+    
+    int count = 0;
+    StackNode* temp = historyStack;
+    while (temp != NULL) 
+    {
+        count++;
+        temp = temp->next;
+    }
+    cout << count << endl;
+    cout << "================================" << endl;
 }
 
 // ========== CLEAR HISTORY ==========
-void clearHistory() {
-    while (historyStack != NULL) {
+void clearHistory() 
+{
+    while (historyStack != NULL) 
+    {
         StackNode* temp = historyStack;
         historyStack = historyStack->next;
         delete temp;
     }
     saveHistory();
-    cout << "{\"success\":true}" << endl;
+    cout << "History cleared successfully!" << endl;
 }
 
-// ========== GET HASH TABLE ==========
-void getHashTable() {
-    cout << "{\"success\":true,\"hashTable\":[";
-
-    for (int i = 0; i < HASH_SIZE; i = i + 1) {
-        if (i > 0) {
-            cout << ",";
-        }
-        cout << "[";
-
+// ========== DISPLAY HASH TABLE (CMD Version) ==========
+void displayHashTable() 
+{
+    cout << endl;
+    cout << "========== HASH TABLE ==========" << endl;
+    
+    for (int i = 0; i < HASH_SIZE; i = i + 1) 
+    {
+        cout << "Bucket " << i << ": ";
+        
         HashNode* temp = hashTable[i];
-        bool first = true;
-        while (temp != NULL) {
-            if (!first) {
-                cout << ",";
+        if (temp == NULL) 
+        {
+            cout << "Empty" << endl;
+        } 
+        else 
+        {
+            bool first = true;
+            while (temp != NULL) 
+            {
+                if (!first) 
+                {
+                    cout << " -> ";
+                }
+                first = false;
+                cout << "[" << temp->password << ":" << temp->status << "]";
+                temp = temp->next;
             }
-            first = false;
-            cout << "{\"password\":\"" << temp->password
-                 << "\",\"status\":\"" << temp->status << "\"}";
-            temp = temp->next;
+            cout << endl;
         }
-        cout << "]";
     }
-    cout << "]}" << endl;
+    cout << "=================================" << endl;
 }
 
-void showCommandMenu() {
-    cerr << "==========================================" << endl;
-    cerr << " CyberVault Backend Server Ready" << endl;
-    cerr << " Files in use: database.txt, history.txt, analytics.txt" << endl;
-    cerr << "==========================================" << endl;
-    cerr << "Available Commands (type and press Enter):" << endl;
-    cerr << "  CHECK_PASSWORD <password>" << endl;
-    cerr << "  ADD_PASSWORD <password> <Safe|Breached>" << endl;
-    cerr << "  GET_HISTORY" << endl;
-    cerr << "  GET_STATS" << endl;
-    cerr << "  GET_HASHTABLE" << endl;
-    cerr << "  CLEAR_HISTORY" << endl;
-    cerr << "  EXIT" << endl;
-    cerr << "------------------------------------------" << endl;
-    cerr << "Example: CHECK_PASSWORD ali999" << endl;
-    cerr << "==========================================" << endl;
-}
 
-// ========== MAIN ==========
 int main() {
+
+    // Load all data
+    cout << "Loading CyberVault..." << endl;
+
     loadDatabase();
     loadAnalytics();
     loadHistory();
 
-    showCommandMenu();
+    cout << "CyberVault Ready!" << endl;
+    cout << "Default passwords loaded: password123, admin1234, qwerty1234, ali9990000, newpass2024" << endl;
+    
+    int choice;
+    string password, status;
+    
+    while (true) {
+        
+    cout << endl;
+    cout << "===== CYBERVAULT PASSWORD MANAGER =====" << endl;
+    cout << "1. Check Password Security" << endl;
+    cout << "2. Add New Password" << endl;
+    cout << "3. Display Hash Table" << endl;
+    cout << "4. View History" << endl;
+    cout << "5. View Analytics" << endl;
+    cout << "6. Clear History" << endl;
+    cout << "7. Save All Data" << endl;
+    cout << "8. Exit" << endl;
+    cout << "=======================================" << endl;
+    cout << "Enter your choice: ";
 
-    string line;
-    while (getline(cin, line)) {
-        if (line.empty()) {
-            continue;
-        }
+        cin >> choice;
+        cin.ignore(); // Clear input buffer
+        
+        if  (choice == 1) 
+            {
+                cout << "Enter password to check: ";
+                getline(cin, password);
+                string result = checkPassword(password);
+                saveAnalytics();
+                saveHistory();
+                cout << "Result: " << result << "!" << endl;
+            }
+            
+        else if (choice == 2) 
+            { 
+                // Add New Password
+                cout << "Enter password to add: ";
+                getline(cin, password);
+                cout << "Enter status (Breached/Safe): ";
+                getline(cin, status);
+                addPassword(password, status);
+                saveHistory();
+            }
+            
+        else if (choice == 3) 
+            {
+                displayHashTable();
+            }
+                
+        else if (choice == 4) 
+            {
+                displayHistory();
+            }    
+                
+        else if (choice == 5) 
+            {  
+                displayStats();
+            }
 
-        stringstream ss(line);
-        string cmd;
-        ss >> cmd;
-
-        if (cmd == "CHECK_PASSWORD") {
-            string pass;
-            ss >> pass;
-            string result = checkPassword(pass);
-            saveAnalytics();
-            saveHistory();
-            cout << "{\"success\":true,\"result\":\"" << result << "\"}" << endl;
+        else if (choice == 6) 
+            {  
+                clearHistory();
+            } 
+                
+        else if (choice == 7) 
+            {
+                saveAnalytics();
+                saveHistory();
+                cout << "All data saved successfully!" << endl;
+            }
+                  
+        else if (choice == 8)  
+            {   
+                cout << "Saving and exiting..." << endl;
+                saveAnalytics();
+                saveHistory();
+                cout << "Goodbye!" << endl;
+                break;
+            }
+                
+            else 
+            {
+                cout << "Invalid choice! Please try again." << endl;
+            }
         }
-        else if (cmd == "ADD_PASSWORD") {
-            string pass, stat;
-            ss >> pass >> stat;
-            addPassword(pass, stat);
-            saveHistory();
-        }
-        else if (cmd == "GET_HISTORY") {
-            displayHistory();
-        }
-        else if (cmd == "GET_STATS") {
-            getStats();
-        }
-        else if (cmd == "GET_HASHTABLE") {
-            getHashTable();
-        }
-        else if (cmd == "CLEAR_HISTORY") {
-            clearHistory();
-        }
-        else if (cmd == "EXIT") {
-            break;
-        }
-        else {
-            cout << "{\"error\":\"Unknown command\"}" << endl;
-        }
-
-        cout.flush();
-    }
-
+    
     return 0;
 }
